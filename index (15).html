@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sales Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23F97316'/><text y='72' x='50' text-anchor='middle' font-size='60' font-family='system-ui' font-weight='800' fill='black'>S</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060606;font-family:-apple-system,'Inter',sans-serif;color:#F1F5F9;min-height:100vh}
+.wrap{padding:20px 24px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.title{font-size:24px;font-weight:800;letter-spacing:-1px}
+.subtitle{font-size:10px;color:#666;letter-spacing:2.5px;text-transform:uppercase;margin-top:6px;font-weight:600;display:flex;align-items:center;gap:4px}
+.client-name{cursor:text;border-bottom:1px solid transparent;transition:border-color 0.15s;color:#666}
+.client-name:hover{border-bottom-color:#333;color:#666}
+.tabs{display:flex;border-bottom:1px solid #141414;margin-bottom:20px;gap:2px}
+.tab{background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;color:#888;padding:9px 18px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;text-transform:uppercase;letter-spacing:1.5px}
+.tab.active{color:#F1F5F9;border-bottom-color:#F1F5F9}
+.row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.row.mb20{margin-bottom:14px}
+.card{background:#0d0d0d;border-radius:12px;padding:14px 16px;flex:1;min-width:120px;position:relative;overflow:hidden;cursor:default;transition:all 0.2s;border:1px solid #141414}
+.card:hover{border-color:#1e1e1e;transform:translateY(-3px) scale(1.01);box-shadow:0 12px 30px rgba(0,0,0,0.7)}
+.card:hover .card-accent{opacity:1}
+.card-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24);opacity:0;transition:opacity 0.2s}
+.card-label{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.card-value{font-size:24px;font-weight:800;color:#F1F5F9;letter-spacing:-0.5px;margin-bottom:6px;line-height:1}
+.card-sub{font-size:10px;color:#666;line-height:1.4}
+.goal-card{background:#0d0d0d;border-radius:12px;padding:18px 22px;border:1px solid #141414;margin-bottom:12px;position:relative;overflow:hidden}
+.goal-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24,#22D3A5);opacity:0.6}
+.goal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.goal-label{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.goal-amount{font-size:38px;font-weight:800;color:#F1F5F9;letter-spacing:-2px;line-height:1}
+.goal-of{font-size:15px;color:#666}
+.goal-pct{font-size:34px;font-weight:800;background:linear-gradient(135deg,#F97316,#FBBF24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;line-height:1;text-align:right}
+.goal-pct-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:4px;text-align:right}
+.goal-bar-bg{background:#111;border-radius:99px;height:5px;overflow:hidden;margin-bottom:12px}
+.goal-bar{height:100%;border-radius:99px;transition:width 0.6s;box-shadow:0 0 8px rgba(249,115,22,0.4)}
+.goal-footer{display:flex;justify-content:space-between}
+.goal-footer span{font-size:12px;color:#666}
+.edit-btn{background:none;border:1px solid #1e1e1e;color:#666;border-radius:5px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:600;text-transform:uppercase;letter-spacing:0.8px}
+.section-label{display:flex;align-items:center;gap:10px;margin-bottom:10px;margin-top:6px}
+.section-label span{font-size:9px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.section-divider{flex:1;height:1px;background:#141414}
+.chart-card{background:#0d0d0d;border-radius:12px;padding:16px 18px;border:1px solid #141414;margin-bottom:12px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.chart-title{font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
+.chart-legend{display:flex;gap:16px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#888}
+.legend-dot{width:14px;height:2px;border-radius:99px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const TODAY = new Date();
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const SMONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt$ = v => Number(v||0).toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:0});
+const fmtN = v => Number(v||0).toLocaleString();
+
+// ── CLIENT CONFIG ──────────────────────────────────────
+const CLIENTS = [
+  {
+    slug: "client",
+    name: "Client",
+    csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7dUSBeMfyhjQwGP4mgQUmJhqX9k9ZvkkHZ9f8LUw_pUmO_5IdzOHauOqv5vuBzAzw_FGgNDOKJVY9/pub?gid=1221331135&single=true&output=csv",
+    monthlyTarget: 100000,
+  },
+];
+// ──────────────────────────────────────────────────────
+
+function getSlug(){ return window.location.pathname.replace(/\//g,"").toLowerCase() || "client"; }
+function getClient(){ return CLIENTS.find(c => c.slug === getSlug()); }
+
+let RAW_ROWS = [];
+
+function parseCSV(rows) {
+  if (!rows || !rows.length) return null;
+  RAW_ROWS = rows;
+  return filterData(rows);
+}
+
+function filterData(rows) {
+  const s = state.startDate, e = state.endDate || state.startDate;
+  const sDay = new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  const eDay = new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59);
+  const filtered = rows.filter(r => {
+    const raw = r["Today's date"] || r["Timestamp"] || "";
+    const d = new Date(raw);
+    if(isNaN(d)) return false;
+    return d >= sDay && d <= eDay;
+  });
+  const g = k => filtered.reduce((a,r) => a + (parseFloat(r[k]) || 0), 0);
+  const byDate = {};
+  filtered.forEach(r => {
+    const raw = r["Today's date"] || r["Timestamp"] || "";
+    const d = new Date(raw);
+    if(isNaN(d)) return;
+    const lbl = SMONTHS[d.getMonth()] + " " + d.getDate();
+    if(!byDate[lbl]) byDate[lbl] = {label:lbl,cash:0,calls:0,closes:0,outbounds:0,convos:0};
+    byDate[lbl].cash += parseFloat(r["Cash Collected from Your Sets Today (Closed)"]) || 0;
+    byDate[lbl].calls += parseFloat(r["Calls Booked"]) || 0;
+    byDate[lbl].closes += parseFloat(r["Closes"]) || 0;
+    byDate[lbl].outbounds += parseFloat(r["Outbound Messages Sent"]) || 0;
+    byDate[lbl].convos += parseFloat(r["Total Conversations Had"]) || 0;
+  });
+  return {
+    totals: {
+      cash: g("Cash Collected from Your Sets Today (Closed)"),
+      calls: g("Calls Booked"), closes: g("Closes"), shows: g("Shows"),
+      outbounds: g("Outbound Messages Sent"), convos: g("Total Conversations Had"),
+      followups: g("Follow-Up Conversations"), hours: g("Hours Worked"),
+      pitched: g("Calls Pitched"), inbounds: g("Inbound Conversations"),
+      qualified: g("Qualified Calls Booked"),
+    },
+    chartData: Object.values(byDate),
+  };
+}
+
+
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function addMonths(d,n){const r=new Date(d);r.setMonth(r.getMonth()+n);return r;}
+function sameDay(a,b){return a&&b&&a.toDateString()===b.toDateString();}
+function dateStr(d){if(!d)return"";return SMONTHS[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear();}
+function getRangeLabel(s,e){
+  if(!s)return"Select range";
+  if(!e||sameDay(s,e))return dateStr(s);
+  if(s.getMonth()===e.getMonth()&&s.getFullYear()===e.getFullYear())return SMONTHS[s.getMonth()]+" "+s.getDate()+" - "+e.getDate()+", "+s.getFullYear();
+  return dateStr(s)+" - "+dateStr(e);
+}
+function getPreset(label){
+  if(label==="Today")return{start:TODAY,end:TODAY};
+  if(label==="This Week"){const day=TODAY.getDay(),diff=day===0?6:day-1;return{start:addDays(TODAY,-diff),end:TODAY};}
+  if(label==="This Month")return{start:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),end:TODAY};
+  if(label==="Last 7D")return{start:addDays(TODAY,-6),end:TODAY};
+  if(label==="Last 30D")return{start:addDays(TODAY,-29),end:TODAY};
+  if(label==="Last 90D")return{start:addDays(TODAY,-89),end:TODAY};
+  if(label==="All Time")return{start:new Date(2024,0,1),end:TODAY};
+}
+function presetActive(label,s,e){const p=getPreset(label);if(!p||!s||!e)return false;return sameDay(p.start,s)&&sameDay(p.end,e);}
+
+const PRESETS=["Today","This Week","This Month","Last 7D","Last 30D","Last 90D","All Time"];
+
+let pickerState = {
+  open:false, selecting:"start", hover:null,
+  start:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),
+  end:TODAY,
+  viewDate:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),
+};
+
+function miniCalHTML(){
+  const vd=pickerState.viewDate;
+  const yr=vd.getFullYear(),mo=vd.getMonth();
+  const rawFirst=new Date(yr,mo,1).getDay();
+  const first=(rawFirst+6)%7;
+  const total=new Date(yr,mo+1,0).getDate();
+  const canNext=addMonths(vd,1)<=TODAY;
+  let cells="";
+  for(let i=0;i<first;i++) cells+="<div></div>";
+  for(let i=1;i<=total;i++){
+    const d=new Date(yr,mo,i);
+    const future=d>TODAY;
+    const isSt=sameDay(d,pickerState.start),isEn=sameDay(d,pickerState.end);
+    const eff=pickerState.end||pickerState.hover;
+    const s=pickerState.start;
+    const inRange=s&&eff&&d>(s<eff?s:eff)&&d<(s<eff?eff:s);
+    const sel=isSt||isEn;
+    const isToday=sameDay(d,TODAY);
+    const bg=sel?"#F1F5F9":inRange?"#1e1e1e":"none";
+    const col=sel?"#000":future?"#2a2a2a":inRange?"#999":isToday?"#F97316":"#888";
+    cells+=`<button onclick="pSelectDay(${yr},${mo},${i})" onmouseenter="pHover(${yr},${mo},${i})"
+      style="background:${bg};color:${col};border:none;border-radius:5px;padding:5px 0;font-size:11px;cursor:${future?"default":"pointer"};font-weight:${sel?"800":isToday?"700":"400"}"
+      ${future?"disabled":""}>${i}</button>`;
+  }
+  return `<div style="width:210px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <button onclick="pPrev()" style="background:#141414;border:none;color:#666;cursor:pointer;font-size:16px;padding:3px 8px;border-radius:5px;line-height:1">&lt;</button>
+      <span style="font-size:12px;color:#F1F5F9;font-weight:700">${MONTHS[mo]} ${yr}</span>
+      <button onclick="pNext()" style="background:${canNext?"#141414":"transparent"};border:none;color:${canNext?"#666":"#222"};cursor:${canNext?"pointer":"default"};font-size:16px;padding:3px 8px;border-radius:5px">&gt;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+      ${["Mo","Tu","We","Th","Fr","Sa","Su"].map(d=>`<div style="text-align:center;font-size:9px;color:#444;font-weight:700">${d}</div>`).join("")}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0">${cells}</div>
+  </div>`;
+}
+
+function pSelectDay(yr,mo,day){
+  const d=new Date(yr,mo,day);
+  if(pickerState.selecting==="start"){pickerState.start=d;pickerState.end=null;pickerState.selecting="end";pickerState.hover=null;}
+  else{const s=pickerState.start;pickerState.start=s<=d?s:d;pickerState.end=s<=d?d:s;pickerState.selecting="start";pickerState.open=false;}
+  render();
+}
+function pHover(yr,mo,day){pickerState.hover=new Date(yr,mo,day);render();}
+function pPrev(){pickerState.viewDate=addMonths(pickerState.viewDate,-1);render();}
+function pNext(){if(addMonths(pickerState.viewDate,1)<=TODAY){pickerState.viewDate=addMonths(pickerState.viewDate,1);render();}}
+function pPreset(label){const p=getPreset(label);if(p){pickerState.start=p.start;pickerState.end=p.end;pickerState.open=false;render();}}
+function togglePicker(){pickerState.open=!pickerState.open;render();}
+
+function pickerHTML(){
+  const label=getRangeLabel(pickerState.start,pickerState.end);
+  const active=PRESETS.find(p=>presetActive(p,pickerState.start,pickerState.end));
+  return `<div style="position:relative">
+    <button onclick="togglePicker()" style="display:flex;align-items:center;gap:8px;background:${pickerState.open?"#111":"#0d0d0d"};border:1px solid ${pickerState.open?"#1e1e1e":"#141414"};border-radius:10px;padding:8px 14px;cursor:pointer;color:#F1F5F9;font-size:11px;font-weight:500">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span style="color:${active?"#F97316":"#F1F5F9"}">${active||label}</span>
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style="transform:${pickerState.open?"rotate(180deg)":"none"};transition:0.2s"><path d="M2 3.5L5 6.5L8 3.5" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    ${pickerState.open?`<div style="position:absolute;right:0;top:calc(100% + 6px);background:#0a0a0a;border:1px solid #1e1e1e;border-radius:12px;padding:16px;z-index:999;display:flex;gap:16px;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+      <div style="display:flex;flex-direction:column;gap:2px;border-right:1px solid #141414;padding-right:16px;min-width:90px">
+        ${PRESETS.map(p=>`<button onclick="pPreset('${p}')" style="background:${presetActive(p,pickerState.start,pickerState.end)?"#1e1e1e":"none"};border:none;color:${presetActive(p,pickerState.start,pickerState.end)?"#F97316":"#888"};text-align:left;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:${presetActive(p,pickerState.start,pickerState.end)?"700":"400"};white-space:nowrap">${p}</button>`).join("")}
+      </div>
+      <div>
+        <div style="font-size:9px;color:#444;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${pickerState.selecting==="start"?"Select Dates":"Select end date"}</div>
+        ${miniCalHTML()}
+      </div>
+    </div>`:""}
+  </div>`;
+}
+
+document.addEventListener("click",e=>{
+  if(pickerState.open&&!e.target.closest("button[onclick='togglePicker()']")&&!e.target.closest("div[style*='z-index:999']")){
+    pickerState.open=false;render();
+  }
+});
+init();
+</script>
+</body>
+</html>
