@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sales Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23F97316'/><text y='72' x='50' text-anchor='middle' font-size='60' font-family='system-ui' font-weight='800' fill='black'>S</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060606;font-family:-apple-system,'Inter',sans-serif;color:#F1F5F9;min-height:100vh}
+.wrap{padding:20px 24px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.title{font-size:24px;font-weight:800;letter-spacing:-1px}
+.subtitle{font-size:10px;color:#666;letter-spacing:2.5px;text-transform:uppercase;margin-top:6px;font-weight:600;display:flex;align-items:center;gap:4px}
+.client-name{cursor:text;border-bottom:1px solid transparent;transition:border-color 0.15s;color:#666}
+.client-name:hover{border-bottom-color:#333;color:#666}
+.tabs{display:flex;border-bottom:1px solid #141414;margin-bottom:20px;gap:2px}
+.tab{background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;color:#888;padding:9px 18px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;text-transform:uppercase;letter-spacing:1.5px}
+.tab.active{color:#F1F5F9;border-bottom-color:#F1F5F9}
+.row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.row.mb20{margin-bottom:14px}
+.card{background:#0d0d0d;border-radius:12px;padding:14px 16px;flex:1;min-width:120px;position:relative;overflow:hidden;cursor:default;transition:all 0.2s;border:1px solid #141414}
+.card:hover{border-color:#1e1e1e;transform:translateY(-3px) scale(1.01);box-shadow:0 12px 30px rgba(0,0,0,0.7)}
+.card:hover .card-accent{opacity:1}
+.card-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24);opacity:0;transition:opacity 0.2s}
+.card-label{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.card-value{font-size:24px;font-weight:800;color:#F1F5F9;letter-spacing:-0.5px;margin-bottom:6px;line-height:1}
+.card-sub{font-size:10px;color:#666;line-height:1.4}
+.goal-card{background:#0d0d0d;border-radius:12px;padding:18px 22px;border:1px solid #141414;margin-bottom:12px;position:relative;overflow:hidden}
+.goal-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24,#22D3A5);opacity:0.6}
+.goal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.goal-label{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.goal-amount{font-size:38px;font-weight:800;color:#F1F5F9;letter-spacing:-2px;line-height:1}
+.goal-of{font-size:15px;color:#666}
+.goal-pct{font-size:34px;font-weight:800;background:linear-gradient(135deg,#F97316,#FBBF24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;line-height:1;text-align:right}
+.goal-pct-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:4px;text-align:right}
+.goal-bar-bg{background:#111;border-radius:99px;height:5px;overflow:hidden;margin-bottom:12px}
+.goal-bar{height:100%;border-radius:99px;transition:width 0.6s;box-shadow:0 0 8px rgba(249,115,22,0.4)}
+.goal-footer{display:flex;justify-content:space-between}
+.goal-footer span{font-size:12px;color:#666}
+.edit-btn{background:none;border:1px solid #1e1e1e;color:#666;border-radius:5px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:600;text-transform:uppercase;letter-spacing:0.8px}
+.section-label{display:flex;align-items:center;gap:10px;margin-bottom:10px;margin-top:6px}
+.section-label span{font-size:9px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.section-divider{flex:1;height:1px;background:#141414}
+.chart-card{background:#0d0d0d;border-radius:12px;padding:16px 18px;border:1px solid #141414;margin-bottom:12px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.chart-title{font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
+.chart-legend{display:flex;gap:16px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#888}
+.legend-dot{width:14px;height:2px;border-radius:99px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const TODAY = new Date();
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const SMONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt$ = v => Number(v||0).toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:0});
+const fmtN = v => Number(v||0).toLocaleString();
+
+// ── CLIENT CONFIG ──────────────────────────────────────
+const CLIENTS = [
+  {
+    slug: "client",
+    name: "Client",
+    csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7dUSBeMfyhjQwGP4mgQUmJhqX9k9ZvkkHZ9f8LUw_pUmO_5IdzOHauOqv5vuBzAzw_FGgNDOKJVY9/pub?gid=1221331135&single=true&output=csv",
+    monthlyTarget: 100000,
+  },
+];
+// ──────────────────────────────────────────────────────
+
+function getSlug(){ return window.location.pathname.replace(/\//g,"").toLowerCase() || "client"; }
+function getClient(){ return CLIENTS.find(c => c.slug === getSlug()); }
+
+function parseCSV(rows) {
+  if (!rows || !rows.length) return null;
+  const g = k => rows.reduce((a,r) => a + (parseFloat(r[k]) || 0), 0);
+  const byDate = {};
+  rows.forEach(r => {
+    const raw = r["Today's date"] || r["Timestamp"] || "";
+    const d = new Date(raw);
+    if (isNaN(d)) return;
+    const lbl = SMONTHS[d.getMonth()] + " " + d.getDate();
+    if (!byDate[lbl]) byDate[lbl] = {label:lbl,cash:0,calls:0,closes:0,outbounds:0,convos:0};
+    byDate[lbl].cash += parseFloat(r["Cash Collected from Your Sets Today (Closed)"]) || 0;
+    byDate[lbl].calls += parseFloat(r["Calls Booked"]) || 0;
+    byDate[lbl].closes += parseFloat(r["Closes"]) || 0;
+    byDate[lbl].outbounds += parseFloat(r["Outbound Messages Sent"]) || 0;
+    byDate[lbl].convos += parseFloat(r["Total Conversations Had"]) || 0;
+  });
+  return {
+    totals: {
+      cash: g("Cash Collected from Your Sets Today (Closed)"),
+      calls: g("Calls Booked"), closes: g("Closes"), shows: g("Shows"),
+      outbounds: g("Outbound Messages Sent"), convos: g("Total Conversations Had"),
+      followups: g("Follow-Up Conversations"), hours: g("Hours Worked"),
+      pitched: g("Calls Pitched"), inbounds: g("Inbound Conversations"),
+      qualified: g("Qualified Calls Booked"),
+    },
+    chartData: Object.values(byDate),
+  };
+}
+
+let DEMO = {
+  totals: {cash:0,calls:0,closes:0,shows:0,outbounds:0,convos:0,followups:0,hours:0,pitched:0,inbounds:0,qualified:0},
+  chartData: []
+};
+
+let state = { page:"overview", goal:100000, clientName:"", editingClient:false };
+let chartInstance = null;
+
+const PREV = {cash:0,calls:0,closes:0,shows:0,outbounds:0,convos:0,followups:0,hours:0,pitched:0,inbounds:0,qualified:0};
+function getDelta(curr, prev) {
+  if (!prev) return "";
+  const pct = ((curr - prev) / prev * 100);
+  const up = pct >= 0;
+  const abs = Math.abs(pct).toFixed(1);
+  return `<span style="font-size:10px;font-weight:700;color:${up?"#22D3A5":"#F43F5E"};background:${up?"rgba(34,211,165,0.1)":"rgba(244,63,94,0.1)"};border-radius:4px;padding:2px 6px;margin-left:4px">${up?"▲":"▼"} ${abs}%</span>`;
+}
+function card(label, value, sub, prevVal) {
+  const currNum = parseFloat(String(value).replace(/[^0-9.]/g,""));
+  const delta = prevVal !== undefined ? getDelta(currNum, prevVal) : "";
+  return `<div class="card"><div class="card-accent"></div><div class="card-label">${label}</div><div class="card-value">${value}</div><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">${sub?`<div class="card-sub">${sub}</div>`:""} ${delta}</div></div>`;
+}
+function sl(name) {
+  return `<div class="section-label"><span>${name}</span><div class="section-divider"></div></div>`;
+}
+function goalHTML() {
+  const cash = DEMO.totals.cash, goal = state.goal;
+  const pct = Math.min((cash/goal)*100,100);
+  const day = TODAY.getDate();
+  const dim = new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0).getDate();
+  const projected = Math.round((cash/day)*dim);
+  const onTrack = projected >= goal;
+  return `<div class="goal-card">
+    <div class="goal-accent"></div>
+    <div class="goal-top">
+      <div>
+        <div class="goal-label">${MONTHS[TODAY.getMonth()]} Target <button class="edit-btn" onclick="editGoal()">Edit</button></div>
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span class="goal-amount">${fmt$(cash)}</span>
+          <span class="goal-of">/ ${fmt$(goal)}</span>
+        </div>
+      </div>
+      <div>
+        <div class="goal-pct">${pct.toFixed(0)}%</div>
+        <div class="goal-pct-label">of target</div>
+      </div>
+    </div>
+    <div class="goal-bar-bg"><div class="goal-bar" style="width:${pct}%;background:linear-gradient(90deg,#F97316,#FBBF24)"></div></div>
+    <div class="goal-footer">
+      <span><span style="color:#999;font-weight:600">${fmt$(goal-cash)}</span> remaining</span>
+      <span>Projected: <span style="color:${onTrack?"#22D3A5":"#F97316"};font-weight:700">${fmt$(projected)}</span></span>
+    </div>
+  </div>`;
+}
+
+function renderOverview() {
+  const t = DEMO.totals;
+  const closeRate = ((t.closes/t.shows)*100).toFixed(1);
+  const aov = Math.round(t.cash/t.closes);
+  const prevCloseRate = ((PREV.closes/PREV.shows)*100).toFixed(1);
+  const prevAov = Math.round(PREV.cash/PREV.closes);
+  return goalHTML() + `<div class="row">
+    ${card("Qualified Calls Booked", fmtN(t.qualified), "", PREV.qualified)}
+    ${card("Close Rate", closeRate+"%", "", parseFloat(prevCloseRate))}
+    ${card("Avg Order Value", fmt$(aov), "", prevAov)}
+    ${card("Cash Collected", fmt$(t.cash), "", PREV.cash)}
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Performance Overview</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#F97316"></div>Cash</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#888"></div>Calls</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#444"></div>Closes</div>
+      </div>
+    </div>
+    <canvas id="chart" height="120"></canvas>
+  </div>`;
+}
+
+function renderActivity() {
+  const t = DEMO.totals;
+  const ctb = ((t.calls/t.convos)*100).toFixed(1);
+  const prevCtb = ((PREV.calls/PREV.convos)*100).toFixed(1);
+  return sl("Outreach") + `<div class="row mb20">
+    ${card("Outbounds", fmtN(t.outbounds), "Total outbound messages", PREV.outbounds)}
+    ${card("Follow-Ups", fmtN(t.followups), "Total follow-ups sent", PREV.followups)}
+    ${card("Conversations", fmtN(t.convos), "Active conversations", PREV.convos)}
+  </div>` + sl("Calls") + `<div class="row mb20">
+    ${card("Calls Pitched", fmtN(t.pitched), "Total calls proposed", PREV.pitched)}
+    ${card("Calls Booked", fmtN(t.calls), "Total calls booked", PREV.calls)}
+    ${card("Calls Booked (Qualified)", fmtN(t.qualified), "Total qualified calls booked", PREV.qualified)}
+  </div>` + sl("Other") + `<div class="row mb20">
+    ${card("Inbounds Received", fmtN(t.inbounds), "Inbound leads received", PREV.inbounds)}
+    ${card("Convo to Book Rate", ctb+"%", fmtN(t.calls)+" of "+fmtN(t.convos)+" convos", parseFloat(prevCtb))}
+    ${card("Hours Worked", fmtN(t.hours)+"h", "", PREV.hours)}
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Activity Breakdown</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#F97316"></div>Outbounds</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#888"></div>Convos</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#444"></div>Booked</div>
+      </div>
+    </div>
+    <canvas id="chart" height="120"></canvas>
+  </div>`;
+}
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  if (!canvas) return;
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const cd = DEMO.chartData;
+  const labels = cd.map(r=>r.label);
+  const baseOpts = {
+    responsive:true,
+    interaction:{mode:"index",intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:"#0a0a0a",
+        borderColor:"#1e1e1e",
+        borderWidth:1,
+        titleColor:"#F1F5F9",
+        titleFont:{size:11,weight:"700",family:"system-ui"},
+        bodyColor:"#999",
+        bodyFont:{size:11,weight:"400",family:"system-ui"},
+        padding:12,
+        boxPadding:5,
+        usePointStyle:true,
+        pointStyle:"circle",
+        boxWidth:8,
+        boxHeight:8,
+        callbacks:{
+          title: items => items[0].label,
+          label: ctx => {
+            const val = ctx.parsed.y;
+            const name = ctx.dataset.label;
+            const formatted = name==="Cash" ? "$"+val.toLocaleString() : val.toLocaleString();
+            return "  " + name + ": " + formatted;
+          }
+        }
+      }
+    },
+    elements:{point:{radius:0,hoverRadius:5,hoverBorderWidth:2},line:{tension:0.4}},
+    scales:{
+      x:{grid:{color:"#111"},ticks:{color:"#666",font:{size:10}},border:{display:false}},
+      y:{grid:{color:"#111"},ticks:{color:"#666",font:{size:10}},border:{display:false}},
+    }
+  };
+  if (state.page === "overview") {
+    chartInstance = new Chart(canvas, {type:"line", data:{labels, datasets:[
+      {label:"Cash", data:cd.map(r=>r.cash), borderColor:"#F97316", borderWidth:2,
+       backgroundColor:"rgba(249,115,22,0.06)", fill:true, yAxisID:"y",
+       pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#F97316", pointHoverBackgroundColor:"#F97316", pointBorderWidth:0, pointStyle:"circle"},
+      {label:"Calls", data:cd.map(r=>r.calls), borderColor:"#888", borderWidth:1.5,
+       yAxisID:"y2", pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#888", pointHoverBackgroundColor:"#888", pointBorderWidth:0, pointStyle:"circle"},
+      {label:"Closes", data:cd.map(r=>r.closes), borderColor:"#555", borderWidth:1.5,
+       yAxisID:"y2", pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#555", pointHoverBackgroundColor:"#555", pointBorderWidth:0, pointStyle:"circle"},
+    ]}, options:{...baseOpts,scales:{
+      x:baseOpts.scales.x,
+      y:{...baseOpts.scales.y,position:"left",ticks:{...baseOpts.scales.y.ticks,callback:v=>"$"+v.toLocaleString()}},
+      y2:{...baseOpts.scales.y,position:"right",grid:{display:false}},
+    }}});
+  } else {
+    chartInstance = new Chart(canvas, {type:"line", data:{labels, datasets:[
+      {label:"Outbounds", data:cd.map(r=>r.outbounds), borderColor:"#F97316", borderWidth:2,
+       backgroundColor:"rgba(249,115,22,0.06)", fill:true,
+       pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#F97316", pointHoverBackgroundColor:"#F97316", pointBorderWidth:0, pointStyle:"circle"},
+      {label:"Convos", data:cd.map(r=>r.convos), borderColor:"#888", borderWidth:1.5,
+       pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#888", pointHoverBackgroundColor:"#888", pointBorderWidth:0, pointStyle:"circle"},
+      {label:"Booked", data:cd.map(r=>r.calls), borderColor:"#555", borderWidth:1.5,
+       pointRadius:0, pointHoverRadius:5, pointBackgroundColor:"#555", pointHoverBackgroundColor:"#555", pointBorderWidth:0, pointStyle:"circle"},
+    ]}, options:baseOpts});
+  }
+}
+
+function render() {
+  const content = state.page === "overview" ? renderOverview() : renderActivity();
+  const cn = state.clientName;
+  document.getElementById("app").innerHTML = `<div class="wrap">
+    <div class="header">
+      <div>
+        <div class="title">Sales Dashboard</div>
+        <div class="subtitle">
+          ML CONSULTING &times;
+          ${state.editingClient
+            ? `<input id="cin" style="background:none;border:none;border-bottom:1px solid #333;color:#888;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;outline:none;width:120px" value="${cn}" onblur="saveClient()" onkeydown="if(event.key==='Enter')saveClient()">`
+            : `<span class="client-name" onclick="startEdit()" title="Click to edit">${cn}</span>`}
+        </div>
+      </div>
+      <div style="font-size:11px;color:#666">${MONTHS[TODAY.getMonth()]} ${TODAY.getFullYear()}</div>
+    </div>
+    <div class="tabs">
+      <button class="tab ${state.page==="overview"?"active":""}" onclick="setPage('overview')">Overview</button>
+      <button class="tab ${state.page==="activity"?"active":""}" onclick="setPage('activity')">Activity</button>
+    </div>
+    ${content}
+  </div>`;
+  setTimeout(drawChart, 30);
+  if (state.editingClient) { const i = document.getElementById("cin"); if(i){i.focus();i.select();} }
+}
+
+function setPage(p){state.page=p;render();}
+function editGoal(){const v=prompt("New monthly target ($):",state.goal);if(v&&parseInt(v)>0){state.goal=parseInt(v);render();}}
+function startEdit(){state.editingClient=true;render();}
+function saveClient(){const i=document.getElementById("cin");if(i&&i.value.trim())state.clientName=i.value.trim();state.editingClient=false;render();}
+
+function init() {
+  const client = getClient();
+  if (!client) {
+    document.getElementById("app").innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#333">Client not found</div>';
+    return;
+  }
+  state.goal = client.monthlyTarget;
+  state.clientName = client.name;
+  try { const g = localStorage.getItem("goal-"+client.slug); if(g) state.goal = parseInt(g); } catch(e) {}
+  try { const cn = localStorage.getItem("clientname-"+client.slug); if(cn) state.clientName = cn; } catch(e) {}
+  render();
+  Papa.parse(client.csvUrl, {
+    download: true, header: true, skipEmptyLines: true,
+    complete: r => { const p = parseCSV(r.data); if(p){ DEMO = p; render(); } },
+    error: () => {}
+  });
+  setInterval(() => window.location.reload(), 60*60*1000);
+}
+
+// Persist edits
+const _editGoal = editGoal;
+function editGoal(){
+  const v=prompt("New monthly target ($):",state.goal);
+  if(v&&parseInt(v)>0){
+    state.goal=parseInt(v);
+    try{localStorage.setItem("goal-"+getSlug(),v);}catch(e){}
+    render();
+  }
+}
+function saveClient(){
+  const i=document.getElementById("cin");
+  if(i&&i.value.trim()) state.clientName=i.value.trim();
+  try{localStorage.setItem("clientname-"+getSlug(),state.clientName);}catch(e){}
+  state.editingClient=false; render();
+}
+
+init();
+</script>
+</body>
+</html>
