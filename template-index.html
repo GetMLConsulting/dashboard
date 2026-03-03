@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sales Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MiA2MiI+PGNpcmNsZSBjeD0iMzEiIGN5PSIzMSIgcj0iMTYiIHN0cm9rZT0iI0Y5NzMxNiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWRhc2hhcnJheT0iMjggNSIgc3Ryb2tlLWRhc2hvZmZzZXQ9IjAiIHRyYW5zZm9ybT0icm90YXRlKC05MCAzMSAzMSkiLz48Y2lyY2xlIGN4PSIzMSIgY3k9IjMxIiByPSIxNiIgc3Ryb2tlPSIjRjk3MzE2IiBzdHJva2Utd2lkdGg9IjEzIiBzdHJva2UtZGFzaGFycmF5PSIyOCA1IiBzdHJva2UtZGFzaG9mZnNldD0iLTMzIiB0cmFuc2Zvcm09InJvdGF0ZSgtOTAgMzEgMzEpIiBvcGFjaXR5PSIwLjU1Ii8+PGNpcmNsZSBjeD0iMzEiIGN5PSIzMSIgcj0iMTYiIHN0cm9rZT0iI0Y5NzMxNiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWRhc2hhcnJheT0iMjggNSIgc3Ryb2tlLWRhc2hvZmZzZXQ9Ii02NiIgdHJhbnNmb3JtPSJyb3RhdGUoLTkwIDMxIDMxKSIgb3BhY2l0eT0iMC4yNSIvPjwvc3ZnPg==">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#060606;font-family:-apple-system,'Inter',sans-serif;color:#F1F5F9}
+#app{height:100vh;display:flex;flex-direction:column;padding:16px 28px;overflow:hidden}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-shrink:0}
+.title{font-size:24px;font-weight:800;letter-spacing:-1px}
+.subtitle{font-size:10px;color:#666;letter-spacing:2.5px;text-transform:uppercase;margin-top:5px;font-weight:600;display:flex;align-items:center;gap:4px}
+.client-name{cursor:text;border-bottom:1px solid transparent;transition:border-color 0.15s;color:#666}
+.client-name:hover{border-bottom-color:#333}
+.tabs{display:flex;border-bottom:1px solid #141414;margin-bottom:12px;gap:2px;flex-shrink:0}
+.tab{background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;color:#888;padding:7px 16px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;text-transform:uppercase;letter-spacing:1.5px}
+.tab.active{color:#F1F5F9;border-bottom-color:#F1F5F9}
+.content{display:flex;flex-direction:column;flex:1;min-height:0}
+.row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;flex-shrink:0}
+.card{background:#0d0d0d;border-radius:12px;padding:14px 16px;flex:1;min-width:120px;position:relative;overflow:hidden;transition:all 0.2s;border:1px solid #141414}
+.card:hover{border-color:#1e1e1e;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+.card:hover .ca{opacity:1}
+.ca{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24);opacity:0;transition:opacity 0.2s}
+.card-label{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.card-value{font-size:22px;font-weight:800;color:#F1F5F9;letter-spacing:-0.5px;margin-bottom:6px;line-height:1}
+.card-sub{font-size:10px;color:#666}
+.goal{background:#0d0d0d;border-radius:12px;padding:14px 20px;border:1px solid #141414;margin-bottom:10px;position:relative;overflow:hidden;flex-shrink:0}
+.goal-accent{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#F97316,#FBBF24,#22D3A5);opacity:0.6}
+.goal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.goal-label{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;display:flex;align-items:center;gap:8px}
+.goal-amount{font-size:28px;font-weight:800;letter-spacing:-1.5px;line-height:1}
+.goal-of{font-size:13px;color:#666;margin-left:8px}
+.goal-pct{font-size:24px;font-weight:800;background:linear-gradient(135deg,#F97316,#FBBF24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px}
+.goal-bar-bg{background:#111;border-radius:99px;height:4px;overflow:hidden;margin-bottom:8px}
+.goal-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#F97316,#FBBF24);box-shadow:0 0 6px rgba(249,115,22,0.4);transition:width 0.6s}
+.goal-footer{display:flex;justify-content:space-between;font-size:11px;color:#666}
+.edit-btn{background:none;border:1px solid #1e1e1e;color:#666;border-radius:5px;padding:1px 7px;font-size:9px;cursor:pointer;font-weight:600;text-transform:uppercase;letter-spacing:0.8px}
+.sl{display:flex;align-items:center;gap:8px;margin-bottom:8px;margin-top:4px;flex-shrink:0}
+.sl span{font-size:9px;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:2px;white-space:nowrap}
+.sl hr{flex:1;border:none;border-top:1px solid #141414}
+.chart-wrap{background:#0d0d0d;border-radius:12px;padding:14px 16px;border:1px solid #141414;flex:1;display:flex;flex-direction:column;min-height:0}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-shrink:0}
+.chart-title{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:1.2px}
+.chart-legend{display:flex;gap:14px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:#666}
+.ld{width:12px;height:2px;border-radius:99px}
+.chart-inner{flex:1;position:relative;min-height:0}
+.delta-up{font-size:10px;font-weight:700;color:#22D3A5;background:rgba(34,211,165,0.1);border-radius:4px;padding:2px 5px}
+.delta-dn{font-size:10px;font-weight:700;color:#F43F5E;background:rgba(244,63,94,0.1);border-radius:4px;padding:2px 5px}
+/* Picker */
+.picker-btn{display:flex;align-items:center;gap:7px;background:#0d0d0d;border:1px solid #141414;border-radius:10px;padding:7px 12px;cursor:pointer;color:#F1F5F9;font-size:11px;font-weight:500;transition:all 0.15s}
+.picker-btn:hover{border-color:#1e1e1e}
+.picker-dropdown{position:absolute;right:0;top:calc(100% + 6px);background:#0a0a0a;border:1px solid #1e1e1e;border-radius:12px;padding:14px;z-index:999;display:flex;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,0.9)}
+.preset-btn{background:none;border:none;color:#888;text-align:left;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;width:100%}
+.preset-btn.active{background:#1e1e1e;color:#F97316;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">Loading...</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────
+const CLIENTS = [{
+  slug:"client", name:"Client",
+  csvUrl:"https://docs.google.com/spreadsheets/d/e/2PACX-1vT7dUSBeMfyhjQwGP4mgQUmJhqX9k9ZvkkHZ9f8LUw_pUmO_5IdzOHauOqv5vuBzAzw_FGgNDOKJVY9/pub?gid=1221331135&single=true&output=csv",
+  monthlyTarget:100000,
+}];
+// ──────────────────────────────────────────────────────
+
+const TODAY=new Date();
+// *** FIX 1: Use "Date (Formatted)" column (YYYY-MM-DD) as the ONLY date source ***
+const dateKey="Date (Formatted)";
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const SM=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt$=v=>Number(v||0).toLocaleString("en-US",{style:"currency",currency:"USD",minimumFractionDigits:0});
+const fmtN=v=>Number(v||0).toLocaleString();
+
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function addMonths(d,n){const r=new Date(d);r.setMonth(r.getMonth()+n);return r;}
+function sameDay(a,b){return a&&b&&a.toDateString()===b.toDateString();}
+function dateStr(d){return d?SM[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear():"";}
+function getRangeLabel(s,e){
+  if(!s)return"Select range";
+  if(!e||sameDay(s,e))return dateStr(s);
+  if(s.getMonth()===e.getMonth()&&s.getFullYear()===e.getFullYear())return SM[s.getMonth()]+" "+s.getDate()+" - "+e.getDate()+", "+s.getFullYear();
+  return dateStr(s)+" - "+dateStr(e);
+}
+const PRESETS=["Today","This Week","This Month","Last 7D","Last 30D","Last 90D","All Time"];
+function getPreset(l){
+  if(l==="Today")return{start:TODAY,end:TODAY};
+  if(l==="This Week"){const d=TODAY.getDay(),diff=d===0?6:d-1;return{start:addDays(TODAY,-diff),end:TODAY};}
+  if(l==="This Month")return{start:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),end:TODAY};
+  if(l==="Last 7D")return{start:addDays(TODAY,-6),end:TODAY};
+  if(l==="Last 30D")return{start:addDays(TODAY,-29),end:TODAY};
+  if(l==="Last 90D")return{start:addDays(TODAY,-89),end:TODAY};
+  if(l==="All Time")return{start:new Date(2024,0,1),end:TODAY};
+}
+function presetActive(l,s,e){const p=getPreset(l);return p&&s&&e&&sameDay(p.start,s)&&sameDay(p.end,e);}
+
+// ── STATE ──────────────────────────────────────────────
+let S={
+  page:"overview",goal:100000,clientName:"",editingClient:false,
+  pickerOpen:false,pickerSelecting:"start",pickerHover:null,
+  start:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),
+  end:TODAY,
+  viewDate:new Date(TODAY.getFullYear(),TODAY.getMonth(),1),
+};
+let RAW=[], DATA={totals:{cash:0,calls:0,closes:0,shows:0,calendar:0,outbounds:0,convos:0,followups:0,hours:0,pitched:0,inbounds:0,qualified:0},chartData:[]};
+let chart=null;
+
+function getSlug(){return window.location.pathname.replace(/\//g,"").toLowerCase()||"client";}
+function getClient(){return CLIENTS.find(c=>c.slug===getSlug())||CLIENTS[0];}
+
+// *** FIX 2: Helper to parse YYYY-MM-DD dates reliably without timezone issues ***
+function parseFormattedDate(str) {
+  if (!str) return null;
+  // Handle YYYY-MM-DD format from the "Date (Formatted)" column
+  const parts = String(str).trim().split("-");
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1; // months are 0-indexed
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m, d);
+    }
+  }
+  // Fallback: try native parsing
+  const fallback = new Date(str);
+  return isNaN(fallback) ? null : fallback;
+}
+
+// ── CSV ────────────────────────────────────────────────
+// *** FIX 3: Rewritten filterData to ONLY use "Date (Formatted)" column, never Timestamp ***
+function filterData(rows){
+  const s=S.start, e=S.end||S.start;
+  const s0=new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  const e0=new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59);
+
+  // Filter rows using ONLY the "Date (Formatted)" column
+  const f=rows.filter(r=>{
+    const dateStr = r[dateKey]; // "Date (Formatted)" column only
+    const d = parseFormattedDate(dateStr);
+    return d && d >= s0 && d <= e0;
+  });
+
+  const g=k=>f.reduce((a,r)=>a+(parseFloat(r[k])||0),0);
+
+  // Build chart data by day, sorted chronologically
+  const bd={};
+  f.forEach(r=>{
+    const d = parseFormattedDate(r[dateKey]);
+    if(!d) return;
+    const sortKey = r[dateKey]; // YYYY-MM-DD sorts correctly as string
+    const lbl=SM[d.getMonth()]+" "+d.getDate();
+    if(!bd[sortKey])bd[sortKey]={sortKey:sortKey, label:lbl, cash:0, calls:0, closes:0, outbounds:0, convos:0, pitched:0, shows:0};
+    bd[sortKey].cash+=parseFloat(r["Total Cash Collected (Today)"])||0;
+    bd[sortKey].calls+=parseFloat(r["Calls Booked"])||0;
+    bd[sortKey].closes+=parseFloat(r["Total Amount Closed"])||0;
+    bd[sortKey].outbounds+=parseFloat(r["Outbound Messages Sent"])||0;
+    bd[sortKey].convos+=parseFloat(r["Total Conversations Had"])||0;
+    bd[sortKey].pitched+=parseFloat(r["Calls Pitched"])||0;
+    bd[sortKey].shows+=parseFloat(r["Calls That Showed Up (Today)"])||0;
+  });
+
+  // *** FIX 4: Sort chart data chronologically by the YYYY-MM-DD key ***
+  const chartData = Object.values(bd).sort((a,b) => a.sortKey.localeCompare(b.sortKey));
+
+  return {
+    totals:{
+      cash:g("Total Cash Collected (Today)"),
+      calls:g("Calls Booked"),
+      closes:g("Total Amount Closed"),
+      shows:g("Calls That Showed Up (Today)"),
+      calendar:g("Calls On Calendar (Today)"),
+      outbounds:g("Outbound Messages Sent"),
+      convos:g("Total Conversations Had"),
+      followups:g("Follow-Ups"),
+      hours:g("Hours Worked"),
+      pitched:g("Calls Pitched"),
+      inbounds:g("Inbound Conversations"),
+      qualified:g("Qualified Calls Booked")
+    },
+    chartData: chartData
+  };
+}
+
+// ── COMPONENTS ─────────────────────────────────────────
+function card(label,value,sub){
+  return `<div class="card"><div class="ca"></div><div class="card-label">${label}</div><div class="card-value">${value}</div>${sub?`<div class="card-sub">${sub}</div>`:""}</div>`;
+}
+
+function goalHTML(){
+  const t=DATA.totals,goal=S.goal;
+  const pct=Math.min((t.cash/goal)*100,100);
+  const day=TODAY.getDate(),dim=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0).getDate();
+  const proj=day>0?Math.round((t.cash/day)*dim):0;
+  return `<div class="goal"><div class="goal-accent"></div>
+    <div class="goal-top">
+      <div>
+        <div class="goal-label">${MONTHS[TODAY.getMonth()]} Target <button class="edit-btn" onclick="editGoal()">Edit</button></div>
+        <div><span class="goal-amount">${fmt$(t.cash)}</span><span class="goal-of">/ ${fmt$(goal)}</span></div>
+      </div>
+      <div style="text-align:right">
+        <div class="goal-pct">${pct.toFixed(0)}%</div>
+        <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:1px">of target</div>
+      </div>
+    </div>
+    <div class="goal-bar-bg"><div class="goal-bar" style="width:${pct}%"></div></div>
+    <div class="goal-footer">
+      <span><span style="color:#888;font-weight:600">${fmt$(goal-t.cash)}</span> remaining</span>
+      <span>Projected: <span style="color:${proj>=goal?"#22D3A5":"#F97316"};font-weight:700">${fmt$(proj)}</span></span>
+    </div>
+  </div>`;
+}
+
+function sl(name){return `<div class="sl"><span>${name}</span><hr></div>`;}
+
+function chartHTML(title,legend){
+  return `<div class="chart-wrap">
+    <div class="chart-header">
+      <div class="chart-title">${title}</div>
+      <div class="chart-legend">${legend}</div>
+    </div>
+    <div class="chart-inner"><canvas id="chart"></canvas></div>
+  </div>`;
+}
+
+function renderOverview(){
+  const t=DATA.totals;
+
+  // *** FIX 5: Correct Show Rate and Close Rate calculations ***
+  // Show Rate = people who showed up / people on calendar
+  // Close Rate = deals closed / people who showed up
+  // Avg Order Value = total cash / number of closes
+  const sr = t.calendar > 0 ? ((t.shows / t.calendar) * 100).toFixed(1) : null;
+  const cr = t.shows > 0 ? ((t.closes / t.shows) * 100).toFixed(1) : null;
+  const aov = t.closes > 0 ? Math.round(t.cash / t.closes) : null;
+
+  return `<div class="content">
+    ${goalHTML()}
+    <div class="row">
+      ${card("Calls Booked (Qualified)",fmtN(t.qualified),"")}
+      ${card("Show Rate",sr!=null?sr+"%":"—","")}
+      ${card("Close Rate",cr!=null?cr+"%":"—","")}
+      ${card("Avg Order Value",aov!=null?fmt$(aov):"—","")}
+    </div>
+    ${chartHTML("Performance Overview",`
+      <div class="li"><div class="ld" style="background:#F97316"></div>Cash</div>
+      <div class="li"><div class="ld" style="background:#888"></div>Closes</div>
+      <div class="li"><div class="ld" style="background:#444"></div>Shows</div>`)}
+  </div>`;
+}
+
+function renderActivity(){
+  const t=DATA.totals;
+  const ctb=t.convos>0?((t.calls/t.convos)*100).toFixed(1):"0.0";
+  const ptb=t.pitched>0?((t.calls/t.pitched)*100).toFixed(1):"0.0";
+  const sr=t.calendar>0?((t.shows/t.calendar)*100).toFixed(1):null;
+  return `<div class="content">
+    ${sl("Outreach")}
+    <div class="row">
+      ${card("Outbounds",fmtN(t.outbounds),"")}
+      ${card("Follow-Ups",fmtN(t.followups),"")}
+      ${card("Conversations",fmtN(t.convos),"")}
+    </div>
+    ${sl("Calls")}
+    <div class="row">
+      ${card("Calls Pitched",fmtN(t.pitched),"")}
+      ${card("Calls Booked",fmtN(t.calls),"")}
+      ${card("Calls Booked (Qualified)",fmtN(t.qualified),"")}
+    </div>
+    ${sl("Other")}
+    <div class="row">
+      ${card("Inbounds",fmtN(t.inbounds),"")}
+      ${card("Convo to Book Rate",ctb+"%","")}
+      ${card("Hours Worked",fmtN(t.hours),"")}
+    </div>
+    ${chartHTML("Activity Breakdown",`
+      <div class="li"><div class="ld" style="background:#F97316"></div>Outbounds</div>
+      <div class="li"><div class="ld" style="background:#888"></div>Convos</div>
+      <div class="li"><div class="ld" style="background:#444"></div>Pitched</div>`)}
+  </div>`;
+}
+
+// ── CHART ──────────────────────────────────────────────
+function drawChart(){
+  const canvas=document.getElementById("chart");
+  if(!canvas)return;
+  if(chart){chart.destroy();chart=null;}
+  const cd=DATA.chartData,labels=cd.map(r=>r.label);
+  const base={
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:"index",intersect:false},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:"#0a0a0a",borderColor:"#1e1e1e",borderWidth:1,
+      titleColor:"#F1F5F9",titleFont:{size:11,weight:"700"},
+      bodyColor:"#999",bodyFont:{size:11,weight:"400"},
+      padding:12,boxPadding:5,usePointStyle:true,pointStyle:"circle",boxWidth:8,boxHeight:8,
+      callbacks:{label:ctx=>{const v=ctx.parsed.y,n=ctx.dataset.label;return" "+n+": "+(n==="Cash"?"$"+v.toLocaleString():v.toLocaleString());}}
+    }},
+    elements:{point:{radius:0,hoverRadius:5},line:{tension:0.4}},
+    scales:{
+      x:{grid:{color:"#111"},ticks:{color:"#555",font:{size:10}},border:{display:false}},
+      y:{grid:{color:"#111"},ticks:{color:"#555",font:{size:10}},border:{display:false}},
+    }
+  };
+  if(S.page==="overview"){
+    chart=new Chart(canvas,{type:"line",data:{labels,datasets:[
+      {label:"Cash",data:cd.map(r=>r.cash),borderColor:"#F97316",borderWidth:2,backgroundColor:"rgba(249,115,22,0.06)",fill:true,yAxisID:"y",pointBackgroundColor:"#F97316",pointBorderWidth:0,pointStyle:"circle"},
+      {label:"Closes",data:cd.map(r=>r.closes),borderColor:"#888",borderWidth:1.5,yAxisID:"y2",pointBackgroundColor:"#888",pointBorderWidth:0,pointStyle:"circle"},
+      {label:"Shows",data:cd.map(r=>r.shows),borderColor:"#444",borderWidth:1.5,yAxisID:"y2",pointBackgroundColor:"#444",pointBorderWidth:0,pointStyle:"circle"},
+    ]},options:{...base,scales:{x:base.scales.x,
+      y:{...base.scales.y,position:"left",ticks:{...base.scales.y.ticks,callback:v=>"$"+v.toLocaleString()}},
+      y2:{...base.scales.y,position:"right",grid:{display:false}}
+    }}});
+  } else {
+    chart=new Chart(canvas,{type:"line",data:{labels,datasets:[
+      {label:"Outbounds",data:cd.map(r=>r.outbounds),borderColor:"#F97316",borderWidth:2,backgroundColor:"rgba(249,115,22,0.06)",fill:true,pointBackgroundColor:"#F97316",pointBorderWidth:0,pointStyle:"circle"},
+      {label:"Convos",data:cd.map(r=>r.convos),borderColor:"#888",borderWidth:1.5,pointBackgroundColor:"#888",pointBorderWidth:0,pointStyle:"circle"},
+      {label:"Pitched",data:cd.map(r=>r.pitched),borderColor:"#444",borderWidth:1.5,pointBackgroundColor:"#444",pointBorderWidth:0,pointStyle:"circle"},
+    ]},options:base});
+  }
+}
+
+// ── PICKER ─────────────────────────────────────────────
+function miniCal(){
+  const vd=S.viewDate,yr=vd.getFullYear(),mo=vd.getMonth();
+  const first=(new Date(yr,mo,1).getDay()+6)%7,total=new Date(yr,mo+1,0).getDate();
+  const canNext=addMonths(vd,1)<=TODAY;
+  let cells="";
+  for(let i=0;i<first;i++)cells+="<div></div>";
+  for(let i=1;i<=total;i++){
+    const d=new Date(yr,mo,i),future=d>TODAY;
+    const isSt=sameDay(d,S.start),isEn=sameDay(d,S.end);
+    const eff=S.end||S.pickerHover,ss=S.start;
+    const inR=ss&&eff&&d>(ss<eff?ss:eff)&&d<(ss<eff?eff:ss);
+    const sel=isSt||isEn;
+    cells+=`<button data-day="${i}" data-month="${mo}" data-year="${yr}" ${future?"disabled":""}
+      style="background:${sel?"#F1F5F9":inR?"#1e1e1e":"none"};color:${sel?"#000":future?"#2a2a2a":inR?"#999":sameDay(d,TODAY)?"#F97316":"#888"};border:none;border-radius:5px;padding:5px 0;font-size:11px;cursor:${future?"default":"pointer"};font-weight:${sel?"800":"400"}">${i}</button>`;
+  }
+  return `<div style="width:210px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <button data-action="prev-month" style="background:#141414;border:none;color:#666;cursor:pointer;font-size:16px;padding:3px 8px;border-radius:5px">&lt;</button>
+      <span style="font-size:12px;color:#F1F5F9;font-weight:700">${MONTHS[mo]} ${yr}</span>
+      <button data-action="next-month" style="background:${canNext?"#141414":"transparent"};border:none;color:${canNext?"#666":"#222"};cursor:${canNext?"pointer":"default"};font-size:16px;padding:3px 8px;border-radius:5px">&gt;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">
+      ${["Mo","Tu","We","Th","Fr","Sa","Su"].map(d=>`<div style="text-align:center;font-size:9px;color:#444;font-weight:700">${d}</div>`).join("")}
+    </div>
+    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0">${cells}</div>
+  </div>`;
+}
+
+function pickerHTML(){
+  const active=PRESETS.find(p=>presetActive(p,S.start,S.end));
+  const label=active||getRangeLabel(S.start,S.end);
+  return `<div style="position:relative">
+    <button data-action="toggle-picker" class="picker-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span style="color:${active?"#F97316":"#F1F5F9"}">${label}</span>
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style="transform:${S.pickerOpen?"rotate(180deg)":"none"};transition:0.2s"><path d="M2 3.5L5 6.5L8 3.5" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    ${S.pickerOpen?`<div class="picker-dropdown" id="picker-dropdown">
+      <div style="display:flex;flex-direction:column;gap:1px;border-right:1px solid #141414;padding-right:14px">
+        ${PRESETS.map(p=>`<button data-preset="${p}" class="preset-btn${presetActive(p,S.start,S.end)?" active":""}">${p}</button>`).join("")}
+      </div>
+      <div>
+        <div style="font-size:9px;color:#444;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Select Dates</div>
+        ${miniCal()}
+      </div>
+    </div>`:""}
+  </div>`;
+}
+
+// Use event delegation on document instead of inline handlers
+var _pickerJustClicked = false;
+
+document.addEventListener("click",function(e){
+  // Toggle picker
+  if(e.target.closest("[data-action='toggle-picker']")){
+    e.preventDefault();e.stopPropagation();
+    S.pickerOpen=!S.pickerOpen;
+    if(S.pickerOpen){S.pickerSelecting="start";}
+    render();return;
+  }
+  // Prev month
+  if(e.target.closest("[data-action='prev-month']")){
+    e.preventDefault();e.stopPropagation();
+    S.viewDate=addMonths(S.viewDate,-1);render();return;
+  }
+  // Next month
+  if(e.target.closest("[data-action='next-month']")){
+    e.preventDefault();e.stopPropagation();
+    if(addMonths(S.viewDate,1)<=TODAY){S.viewDate=addMonths(S.viewDate,1);render();}
+    return;
+  }
+  // Preset buttons
+  var presetBtn=e.target.closest("[data-preset]");
+  if(presetBtn){
+    e.preventDefault();e.stopPropagation();
+    var l=presetBtn.getAttribute("data-preset");
+    var p=getPreset(l);
+    if(p){S.start=p.start;S.end=p.end;S.pickerOpen=false;S.pickerSelecting="start";render();}
+    return;
+  }
+  // Calendar day buttons
+  var dayBtn=e.target.closest("[data-day]");
+  if(dayBtn&&!dayBtn.disabled){
+    e.preventDefault();e.stopPropagation();
+    var yr=parseInt(dayBtn.getAttribute("data-year"));
+    var mo=parseInt(dayBtn.getAttribute("data-month"));
+    var day=parseInt(dayBtn.getAttribute("data-day"));
+    var d=new Date(yr,mo,day);
+    if(S.pickerSelecting==="start"){
+      S.start=d;S.end=null;S.pickerSelecting="end";S.pickerHover=null;
+      _pickerJustClicked=true;
+      setTimeout(function(){_pickerJustClicked=false;},200);
+      render();
+    } else {
+      var s=S.start;
+      if(sameDay(s,d)){S.start=d;S.end=d;}
+      else {S.start=s<=d?s:d;S.end=s<=d?d:s;}
+      S.pickerSelecting="start";
+      S.pickerOpen=false;
+      render();
+    }
+    return;
+  }
+  // Inside dropdown but not on a button
+  if(e.target.closest("#picker-dropdown")){return;}
+  // Close picker when clicking outside
+  if(S.pickerOpen&&!_pickerJustClicked){
+    S.pickerOpen=false;S.pickerSelecting="start";render();
+  }
+});
+
+// Hover: update visuals without full re-render
+document.addEventListener("mouseover",function(e){
+  if(!S.pickerOpen||S.pickerSelecting!=="end")return;
+  var dayBtn=e.target.closest("[data-day]");
+  if(!dayBtn)return;
+  var yr=parseInt(dayBtn.getAttribute("data-year"));
+  var mo=parseInt(dayBtn.getAttribute("data-month"));
+  var day=parseInt(dayBtn.getAttribute("data-day"));
+  var hoverDate=new Date(yr,mo,day);
+  if(S.pickerHover&&sameDay(S.pickerHover,hoverDate))return;
+  S.pickerHover=hoverDate;
+  var grid=document.getElementById("cal-grid");
+  if(!grid)return;
+  grid.querySelectorAll("[data-day]").forEach(function(btn){
+    var by=parseInt(btn.getAttribute("data-year"));
+    var bm=parseInt(btn.getAttribute("data-month"));
+    var bd=parseInt(btn.getAttribute("data-day"));
+    var bDate=new Date(by,bm,bd);
+    var isSt=sameDay(bDate,S.start);
+    var eff=S.pickerHover,ss=S.start;
+    var inR=ss&&eff&&bDate>(ss<eff?ss:eff)&&bDate<(ss<eff?eff:ss);
+    var isHov=sameDay(bDate,hoverDate);
+    var future=bDate>TODAY;
+    if(isSt||isHov){btn.style.background="#F1F5F9";btn.style.color="#000";btn.style.fontWeight="800";}
+    else if(inR){btn.style.background="#1e1e1e";btn.style.color="#999";btn.style.fontWeight="400";}
+    else{btn.style.background="none";btn.style.color=future?"#2a2a2a":sameDay(bDate,TODAY)?"#F97316":"#888";btn.style.fontWeight="400";}
+  });
+});
+
+function togglePicker(){S.pickerOpen=!S.pickerOpen;render();}
+
+// ── RENDER ─────────────────────────────────────────────
+function render(){
+  if(RAW.length) DATA=filterData(RAW);
+  const cn=S.clientName||getClient()?.name||"Client";
+  const content=S.page==="overview"?renderOverview():renderActivity();
+  document.getElementById("app").innerHTML=`
+    <div class="header">
+      <div>
+        <div class="title">Sales Dashboard</div>
+        <div class="subtitle">ML CONSULTING &times;
+          ${S.editingClient
+            ?`<input id="cin" style="background:none;border:none;border-bottom:1px solid #333;color:#666;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;outline:none;width:120px" value="${cn}" onblur="saveClient()" onkeydown="if(event.key==='Enter')saveClient()">`
+            :`<span class="client-name" onclick="startEdit()">${cn}</span>`}
+        </div>
+      </div>
+      ${pickerHTML()}
+    </div>
+    <div class="tabs">
+      <button class="tab ${S.page==="overview"?"active":""}" onclick="setPage('overview')">Overview</button>
+      <button class="tab ${S.page==="activity"?"active":""}" onclick="setPage('activity')">Activity</button>
+    </div>
+    ${content}`;
+  setTimeout(drawChart,30);
+  if(S.editingClient){const i=document.getElementById("cin");if(i){i.focus();i.select();}}
+}
+
+function setPage(p){S.page=p;render();}
+function editGoal(){const v=prompt("New monthly target ($):",S.goal);if(v&&parseInt(v)>0){S.goal=parseInt(v);render();}}
+function startEdit(){S.editingClient=true;render();}
+function saveClient(){const i=document.getElementById("cin");if(i&&i.value.trim())S.clientName=i.value.trim();S.editingClient=false;render();}
+
+// Click handling is done via event delegation above
+
+// ── INIT ───────────────────────────────────────────────
+function init(){
+  const client=getClient();
+  if(!client){document.getElementById("app").innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#333">Client not found</div>';return;}
+  S.goal=client.monthlyTarget;
+  S.clientName=client.name;
+  render();
+  Papa.parse(client.csvUrl,{
+    download:true,header:true,skipEmptyLines:true,
+    complete:r=>{RAW=r.data;DATA=filterData(RAW);render();},
+    error:()=>{}
+  });
+  setInterval(()=>window.location.reload(),60*60*1000);
+}
+init();
+</script>
+</body>
+</html>
