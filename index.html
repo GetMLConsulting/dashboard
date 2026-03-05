@@ -65,14 +65,13 @@ html,body{height:100%;overflow:hidden;background:#060606;font-family:-apple-syst
 <script>
 // ── CONFIG ─────────────────────────────────────────────
 const CLIENTS = [{
-  slug:"client", name:"Client",
+  slug:"Client", name:"Client",
   csvUrl:"https://docs.google.com/spreadsheets/d/e/2PACX-1vT7dUSBeMfyhjQwGP4mgQUmJhqX9k9ZvkkHZ9f8LUw_pUmO_5IdzOHauOqv5vuBzAzw_FGgNDOKJVY9/pub?gid=1221331135&single=true&output=csv",
   monthlyTarget:100000,
 }];
 // ──────────────────────────────────────────────────────
 
 const TODAY=new Date();
-// *** FIX 1: Use "Date (Formatted)" column (YYYY-MM-DD) as the ONLY date source ***
 const dateKey="Date (Formatted)";
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const SM=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -115,46 +114,41 @@ let chart=null;
 function getSlug(){return window.location.pathname.replace(/\//g,"").toLowerCase()||"client";}
 function getClient(){return CLIENTS.find(c=>c.slug===getSlug())||CLIENTS[0];}
 
-// *** FIX 2: Helper to parse YYYY-MM-DD dates reliably without timezone issues ***
+// ── DATE PARSING (YYYY-MM-DD only, no timezone issues) ──
 function parseFormattedDate(str) {
   if (!str) return null;
-  // Handle YYYY-MM-DD format from the "Date (Formatted)" column
   const parts = String(str).trim().split("-");
   if (parts.length === 3) {
     const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10) - 1; // months are 0-indexed
+    const m = parseInt(parts[1], 10) - 1;
     const d = parseInt(parts[2], 10);
     if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
       return new Date(y, m, d);
     }
   }
-  // Fallback: try native parsing
   const fallback = new Date(str);
   return isNaN(fallback) ? null : fallback;
 }
 
-// ── CSV ────────────────────────────────────────────────
-// *** FIX 3: Rewritten filterData to ONLY use "Date (Formatted)" column, never Timestamp ***
+// ── CSV FILTERING (uses Date Formatted column ONLY) ────
 function filterData(rows){
   const s=S.start, e=S.end||S.start;
   const s0=new Date(s.getFullYear(),s.getMonth(),s.getDate());
   const e0=new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59);
 
-  // Filter rows using ONLY the "Date (Formatted)" column
   const f=rows.filter(r=>{
-    const dateStr = r[dateKey]; // "Date (Formatted)" column only
+    const dateStr = r[dateKey];
     const d = parseFormattedDate(dateStr);
     return d && d >= s0 && d <= e0;
   });
 
   const g=k=>f.reduce((a,r)=>a+(parseFloat(r[k])||0),0);
 
-  // Build chart data by day, sorted chronologically
   const bd={};
   f.forEach(r=>{
     const d = parseFormattedDate(r[dateKey]);
     if(!d) return;
-    const sortKey = r[dateKey]; // YYYY-MM-DD sorts correctly as string
+    const sortKey = r[dateKey];
     const lbl=SM[d.getMonth()]+" "+d.getDate();
     if(!bd[sortKey])bd[sortKey]={sortKey:sortKey, label:lbl, cash:0, calls:0, closes:0, outbounds:0, convos:0, pitched:0, shows:0};
     bd[sortKey].cash+=parseFloat(r["Total Cash Collected (Today)"])||0;
@@ -166,7 +160,6 @@ function filterData(rows){
     bd[sortKey].shows+=parseFloat(r["Calls That Showed Up (Today)"])||0;
   });
 
-  // *** FIX 4: Sort chart data chronologically by the YYYY-MM-DD key ***
   const chartData = Object.values(bd).sort((a,b) => a.sortKey.localeCompare(b.sortKey));
 
   return {
@@ -195,7 +188,7 @@ function card(label,value,sub){
 
 function goalHTML(){
   const t=DATA.totals,goal=S.goal;
-  const pct=Math.min((t.cash/goal)*100,100);
+  const pct=goal>0?Math.min((t.cash/goal)*100,100):0;
   const day=TODAY.getDate(),dim=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0).getDate();
   const proj=day>0?Math.round((t.cash/day)*dim):0;
   return `<div class="goal"><div class="goal-accent"></div>
@@ -231,11 +224,9 @@ function chartHTML(title,legend){
 
 function renderOverview(){
   const t=DATA.totals;
-
-  // *** FIX 5: Correct Show Rate and Close Rate calculations ***
-  // Show Rate = people who showed up / people on calendar
-  // Close Rate = deals closed / people who showed up
-  // Avg Order Value = total cash / number of closes
+  // Show Rate = showed up / on calendar
+  // Close Rate = closes / showed up
+  // AOV = cash / closes
   const sr = t.calendar > 0 ? ((t.shows / t.calendar) * 100).toFixed(1) : null;
   const cr = t.shows > 0 ? ((t.closes / t.shows) * 100).toFixed(1) : null;
   const aov = t.closes > 0 ? Math.round(t.cash / t.closes) : null;
@@ -376,7 +367,7 @@ function pickerHTML(){
   </div>`;
 }
 
-// Use event delegation on document instead of inline handlers
+// ── EVENT DELEGATION ──────────────────────────────────
 var _pickerJustClicked = false;
 
 document.addEventListener("click",function(e){
@@ -467,8 +458,6 @@ document.addEventListener("mouseover",function(e){
   });
 });
 
-function togglePicker(){S.pickerOpen=!S.pickerOpen;render();}
-
 // ── RENDER ─────────────────────────────────────────────
 function render(){
   if(RAW.length) DATA=filterData(RAW);
@@ -496,17 +485,26 @@ function render(){
 }
 
 function setPage(p){S.page=p;render();}
-function editGoal(){const v=prompt("New monthly target ($):",S.goal);if(v&&parseInt(v)>0){S.goal=parseInt(v);render();}}
+
+// Goal editing with localStorage persistence
+function editGoal(){
+  const v=prompt("New monthly target ($):",S.goal);
+  if(v&&parseInt(v)>0){
+    S.goal=parseInt(v);
+    try{localStorage.setItem("goal-"+getClient().slug,String(S.goal));}catch(e){}
+    render();
+  }
+}
+
 function startEdit(){S.editingClient=true;render();}
 function saveClient(){const i=document.getElementById("cin");if(i&&i.value.trim())S.clientName=i.value.trim();S.editingClient=false;render();}
-
-// Click handling is done via event delegation above
 
 // ── INIT ───────────────────────────────────────────────
 function init(){
   const client=getClient();
   if(!client){document.getElementById("app").innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#333">Client not found</div>';return;}
-  S.goal=client.monthlyTarget;
+  // Load saved goal from localStorage, fall back to config default
+  try{const g=localStorage.getItem("goal-"+client.slug);S.goal=g?parseInt(g):client.monthlyTarget;}catch(e){S.goal=client.monthlyTarget;}
   S.clientName=client.name;
   render();
   Papa.parse(client.csvUrl,{
